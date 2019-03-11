@@ -22,6 +22,8 @@ public class CustomClient {
     static final int SIZE = Integer.parseInt(System.getProperty("size", "256"));
  
     public static void main(String[] args) throws Exception {
+
+
         // Configure the client.
         EventLoopGroup group = new NioEventLoopGroup();
         try {
