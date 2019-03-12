@@ -1,5 +1,5 @@
-package com.dixn.netty.LengthFieldBasedFrameDecoder;
-
+package com.dixn.netty.IdleStateHandler;
+ 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -8,59 +8,53 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.string.StringDecoder;
+import io.netty.handler.codec.string.StringEncoder;
+import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
-import lombok.extern.slf4j.Slf4j;
-
+ 
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
-
-@Slf4j
-public class CustomServer {
-
-    private static final int MAX_FRAME_LENGTH = 1024 * 1024;
-    private static final int LENGTH_FIELD_LENGTH = 4;
-    private static final int LENGTH_FIELD_OFFSET = 2;
-    private static final int LENGTH_ADJUSTMENT = 0;
-    private static final int INITIAL_BYTES_TO_STRIP = 0;
-
-    private int port;
-
-    public CustomServer(int port) {
+ 
+public class HeartBeatServer {
+    
+private int port;
+    
+    public HeartBeatServer(int port) {
         this.port = port;
     }
-
-    public void start() {
+    
+    public void start(){
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
             ServerBootstrap sbs = new ServerBootstrap()
-                    .group(bossGroup, workerGroup)
+                    .group(bossGroup,workerGroup)
                     .channel(NioServerSocketChannel.class)
+                    .handler(new LoggingHandler(LogLevel.INFO))
                     .localAddress(new InetSocketAddress(port))
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         protected void initChannel(SocketChannel ch) throws Exception {
                             ch.pipeline().addLast(new IdleStateHandler(5, 0, 0, TimeUnit.SECONDS));
-                            ch.pipeline().addLast(new LoggingHandler());
-                            ch.pipeline().addLast(new CustomDecoder(MAX_FRAME_LENGTH, LENGTH_FIELD_LENGTH, LENGTH_FIELD_OFFSET, LENGTH_ADJUSTMENT, INITIAL_BYTES_TO_STRIP, false));
-                            ch.pipeline().addLast(new CustomEncoder());
-                            ch.pipeline().addLast(new CustomServerHandler());
-                        }
-
-                        ;
-
-                    }).option(ChannelOption.SO_BACKLOG, 1024)
+                            ch.pipeline().addLast("decoder", new StringDecoder());
+                            ch.pipeline().addLast("encoder", new StringEncoder());
+                            ch.pipeline().addLast(new HeartBeatServerHandler());
+                        };
+                        
+                    }).option(ChannelOption.SO_BACKLOG, 128)   
                     .childOption(ChannelOption.SO_KEEPALIVE, true);
-            // 绑定端口，开始接收进来的连接
-            ChannelFuture future = sbs.bind(port).sync();
-            log.info("Server start listen at " + port);
-            future.channel().closeFuture().sync();
+             // 绑定端口，开始接收进来的连接
+             ChannelFuture future = sbs.bind(port).sync();  
+             
+             System.out.println("Server start listen at " + port );
+             future.channel().closeFuture().sync();
         } catch (Exception e) {
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
         }
     }
-
+    
     public static void main(String[] args) throws Exception {
         int port;
         if (args.length > 0) {
@@ -68,6 +62,7 @@ public class CustomServer {
         } else {
             port = 8080;
         }
-        new CustomServer(port).start();
+        new HeartBeatServer(port).start();
     }
+ 
 }
