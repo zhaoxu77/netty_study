@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: netty_study
+
+tcp:
+  port: 8080
